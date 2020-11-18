@@ -394,6 +394,7 @@ class Diff_Operator(object):
             buoyancy_forcing = -t_nodes*self.forcing*self.expansion*self.gravity
         else:
             self.calc_global_forcing()
+            buoyancy_forcing = -t_nodes*self.forcing*self.expansion*self.gravity
         for node in self.mesh.dirich_nodes:
             dof_x, dof_y = self.mesh.node_dof_lookup_P2[node,:]
             buoyancy_forcing[dof_y] = 0.
