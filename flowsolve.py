@@ -390,7 +390,10 @@ class Diff_Operator(object):
         """t_nodes should be the values of the temperature at each dof
         mapping is by dof not by node number
         """
-        buoyancy_forcing = -t_nodes*self.forcing*self.expansion*self.gravity
+        if self.forcing is not None:
+            buoyancy_forcing = -t_nodes*self.forcing*self.expansion*self.gravity
+        else:
+            self.calc_global_forcing()
         for node in self.mesh.dirich_nodes:
             dof_x, dof_y = self.mesh.node_dof_lookup_P2[node,:]
             buoyancy_forcing[dof_y] = 0.
