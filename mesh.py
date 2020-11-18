@@ -108,7 +108,7 @@ class ThermoMesh(object):
                 for j in range(len(line)):
                     els[i,j] = line[j]
                 if els[i,0] ==6: # add not yet added nodes to this list
-                    for node in els[i,:]:
+                    for node in els[i,1:]:
                         if node not in P2_nodes:
                             P2_nodes.append(node)
                         
