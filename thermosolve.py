@@ -76,7 +76,7 @@ class Diff_Operator(object):
                     bad_els.append(el)
                     
                 area += el_area
-                
+        print(len(bad_els), " bad elements")
         print("Total area", area)
         return bad_els
         

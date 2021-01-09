@@ -99,6 +99,7 @@ class ThermoMesh(object):
             P2_nodes = []
             counters = {}
             for i in range(int(nels)):
+                
                 line = f.readline().split(' ')
                 line = [int(a) for a in line]
                 if line[0] in counters:
@@ -110,7 +111,10 @@ class ThermoMesh(object):
                 if els[i,0] ==6: # add not yet added nodes to this list
                     for node in els[i,1:]:
                         if node not in P2_nodes:
+                            if node==6:
+                                print("added now from element", i)
                             P2_nodes.append(node)
+                            
                         
             print("\n Element totals")
             for key in counters:
@@ -406,7 +410,6 @@ class FlowMesh(object):
         self.P1_node_nums = []
         self.P2_node_nums = []
         
-        
         self.node_dof_lookup_P2 = None
         self.node_dof_lookup_P1 = None
         self.nnodes_dc = 0
@@ -465,8 +468,7 @@ class FlowMesh(object):
             print("\n Element totals")
             for key in counters:
                 print(key,"-node elements :", counters[key])
-                
-                
+            
             self.P1_node_nums = P1_nodes
             self.P1_node_nums.sort()
             self.P2_node_nums = P2_nodes
@@ -474,7 +476,6 @@ class FlowMesh(object):
             self.els = els.copy()
             print("Read ", nels,"elements")
             
-
             print("")
             print(1, f.readline())
             line = f.readline()
@@ -748,34 +749,56 @@ class FlowMesh(object):
         
         self.els[elnum,:] = new.copy()
         
-    def add_surface_to_dirichlet(self, subdomain:int, P1=True, overwrite=False):
+    def add_surface_to_dirichlet(self, subdomains:tuple,  overwrite=False):
         """It is necessary to set some whole elements to zero flow sometimes.
         This method adds a given subdomain to the dirichlet set.
         WARNING: This method will cause singularities in the operators. You probably 
         want to remove the pressure terms for that element.
         """
+        for l in subdomains:
+            assert type(l) is int
         new_dc_nodes = []
         # get the elements of interest
-        els = [a for a in self.subdomains if self.subdomains[a]==subdomain]
-        if P1 :
-            k = 4
-        else:
-            k = 7
-        for el in els:
-            if self.els[el,0] ==6 :
-                nodes = self.els[el,1:k]
-                for i in range(k-1):
-                    if nodes[i] not in new_dc_nodes:
-                        new_dc_nodes.append(nodes[i])
-                        
-            else:
-                raise ValueError("Volume element "+str(el)+" is not a volume element")
+        allelsofinterest = []
+        for subdomain in subdomains:
+            allelsofinterest.append([a for a in self.subdomains if self.subdomains[a] in subdomains])
+ 
+        #get the nodes of interest
+        allnodesofinterest = []
+        for elgroup in allelsofinterest:
+            nodegroup = []
+            for el in elgroup:
+                if self.els[el,0] ==6 :
+                    nodes = self.els[el,1:7]
+                    for i in range(6):
+                        if nodes[i] not in new_dc_nodes:
+                            nodegroup.append(nodes[i]) 
+                else:
+                    raise ValueError("Volume element "+str(el)+" is not a volume element")
+                
+            allnodesofinterest.append(nodegroup)
         
-        for node in new_dc_nodes:
-            if node not in self.dirich_nodes or overwrite:
-                self.dirich_nodes[node] = subdomain
+        #Remove pressure condition
+        allelsconcat = [j for i in allelsofinterest for j in i]   
+        newnnodesP1 = []
+        for i in range(len(self.els)): 
+            if self.els[i,0] ==6 and i not in allelsconcat: # add not yet added nodes to this list
+                for node in self.els[i,1:4]:
+                    if node not in newnnodesP1:
+                        newnnodesP1.append(node) 
+        self.P1_node_nums = newnnodesP1
+        self.nnodesP1 = len(self.P1_node_nums)
+        
+        # add to dc nodes
+        zipper = zip(subdomains,allnodesofinterest)
+        for i in range(len(subdomains)):
+            subdomain, new_dc_nodes = next(zipper)
+            for node in new_dc_nodes:
+                if (node not in self.dirich_nodes or overwrite) :
+                    self.dirich_nodes[node] = subdomain 
                 
         self.nnodes_dc = len(self.dirich_nodes)
+        self.node_dof_mapping()
         
     def remove_dirichlet_group(self, group_tuple:tuple):
         """Will eliminate an edge from the dirichlet group, effectively converting
